@@ -9,11 +9,6 @@ import (
 	//"net/url"
 )
 
-type DataPoint struct {
-	Time  int
-	Price float64
-}
-
 type CoinMarketScrapper struct {
 	endpoint string
 	apikey   string

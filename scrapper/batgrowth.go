@@ -6,33 +6,21 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	//"net/url"
+	"strings"
 )
 
-type DataPoint struct {
-	Time  int
-	Price float64
-}
-
-type CoinMarketScrapper struct {
+type BatGrowthScrapper struct {
 	endpoint string
-	apikey   string
 }
 
-type CryptoCompareScrapper struct {
-	endpoint string
-	apikey   string
-}
-
-func NewCryptoCompareScrapper(ep string, k string) *CryptoCompareScrapper {
-	return &CryptoCompareScrapper{
+func NewBatGrowthScrapper(ep string) *BatGrowthScrapper {
+	return &BatGrowthScrapper{
 		endpoint: ep,
-		apikey:   k,
 	}
 }
 
-func (s *CryptoCompareScrapper) GetData() []DataPoint {
-	var dataRes []DataPoint
+func (s *BatGrowthScrapper) GetData() []DataPointGrowth {
+	var dataRes []DataPointGrowth
 
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", s.endpoint, nil)
@@ -47,14 +35,39 @@ func (s *CryptoCompareScrapper) GetData() []DataPoint {
 	fmt.Println(resp.Status)
 	respBody, _ := ioutil.ReadAll(resp.Body)
 
-	var data map[string][]map[string]interface{} //interface{}
-	json.Unmarshal(respBody, &data)
+	strBody := string(respBody)
+	//parse data
 
-	dt := data["Data"]
-	for _, d := range dt {
-		dp := DataPoint{Price: d["close"].(float64), Time: int(d["time"].(float64))}
-		dataRes = append(dataRes, dp)
+	spl := strings.FieldsFunc(strBody, SplitFn)
+	dt := spl[1]
+
+	// ugly and without time
+	//sepA := rune('{')
+	//sepB := rune('"')
+	//for _, dt := range a {
+	//	if rune(a[0]) == sepA {
+	//		if rune(a[1]) == sepB {
+	//			fmt.Println(dt)
+	//		}
+	//	}
+	//}
+
+	// takes only first occurrence of a data set
+	dt = "[" + dt + "]"
+	var dat []map[string]interface{}
+	if err := json.Unmarshal([]byte(dt), &dat); err != nil {
+		log.Fatal(err)
+	}
+
+	for _, dp := range dat {
+		d := DataPointGrowth{Time: int(dp["Created_at"].(float64)), Results: int(dp["Number_of_results"].(float64))}
+		dataRes = append(dataRes, d)
 	}
 
 	return dataRes
+
+}
+
+func SplitFn(r rune) bool {
+	return r == '[' || r == ']'
 }
